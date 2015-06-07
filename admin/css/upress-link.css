@@ -1,0 +1,81 @@
+/*.rtl .upress-wrap {
+    direction: ltr;
+    text-align: left;
+}*/
+
+.no-api-key, .api-error, .api-success {
+    display: none;
+    white-space: pre;
+}
+#api_key {
+    direction: ltr;
+}
+
+.ajax-button-wrapper {
+    display: inline-block;
+    position: relative;
+
+}
+
+.postbox .inside {
+    position: relative;
+}
+.postbox .overlay, .postbox .overlay-loader {
+    position: absolute;
+    top: -7px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+
+    background: #fff;
+    opacity: 0.9;
+    z-index: 999;
+
+    display: none;
+}
+.postbox .overlay p, .postbox .overlay-loader p {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    margin-top: -6px;
+    width: 100%;
+    text-align: center;
+
+    font-size: 1.3em;
+    font-weight: 600;
+    color: #111;
+}
+.postbox .overlay-loader .spinner, .ajax-button-wrapper .spinner {
+    display: block;
+    left: 50%;
+    position: relative;
+    margin-left: -10px;
+}
+.ajax-button-wrapper .spinner {
+    display: none;
+}
+
+.lcs_wrap {
+    width: 73px;
+    position: relative;
+}
+.lcs_wrap .spinner {
+    left: 50%;
+    margin-left: -10px;
+    position: relative;
+}
+
+
+.reload-btn {
+    float: left;
+    width: 27px;
+    height: 30px;
+    margin: 0 12px;
+}
+.reload-btn a {
+    text-decoration: none;
+    font-size: 13px;
+    padding: 8px 10px;
+    display: block;
+    width: 20px;
+}
