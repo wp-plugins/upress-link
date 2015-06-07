@@ -16,7 +16,7 @@
  * Plugin Name:       uPress Link
  * Plugin URI:        http://upress.co.il
  * Description:       uPress Link is a companion plugin for the WordPress hosting manager at https://upress.co.il
- * Version:           1.0.0
+ * Version:           1.1.0
  * Author:            Drubit Raid LTD.
  * Author URI:        http://upress.co.il
  * License:           GPL-2.0+
