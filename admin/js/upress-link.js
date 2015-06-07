@@ -86,17 +86,12 @@
 
                 toggleSwitchSpinner(self, 'hide');
             });
+
         }).on('click', 'button[data-action], input[type=button][data-action]', function(e) {
             e.preventDefault();
 
             var self = $(this);
-            var wrapper = self.parents('.ajax-button-wrapper');
-            self.css({
-                width: self.outerWidth(),
-                height: self.outerHeight()
-            }).find('.text').fadeOut('fast', function() {
-                self.find('.spinner').fadeIn('fast');
-            }).end().attr('disabled', true);
+            startAjaxSpinner(self);
 
             $.post(ajaxurl, {
                 'action': 'send_request',
@@ -119,18 +114,91 @@
                     }
                 }
 
-                self.find('.spinner').fadeOut('fast', function () {
-                    self.find('.text').fadeIn('fast').end().css( {
-                        width: '',
-                        height: ''
-                    }).removeAttr('disabled');
-                });
+                endAjaxSpinner(self);
+            });
+
+        }).on('click', '.media-path-fix-button', function(e) {
+            e.preventDefault();
+
+            var self = $(this);
+            startAjaxSpinner(self);
+
+            $.post(ajaxurl, {
+                'action': 'fix_media_upload_path',
+                '_nonce': upressAjax._nonce
+            }, function(response) {
+                console.log(response);
+
+                if (response.status == "fail") {
+                    flashErrorMessage(response.data.message);
+                }
+                if(response.status == "success") {
+                    if(self.data('success-message')) {
+                        flashSuccessMessage(self.data('success-message'));
+                    } else {
+                        flashSuccessMessage(upressAjax.requestSuccess);
+                    }
+                }
+
+                endAjaxSpinner(self);
+            });
+        }).on('click', '.search-and-replace-button', function(e) {
+            e.preventDefault();
+
+            var self = $(this);
+            startAjaxSpinner(self);
+
+            $.post(ajaxurl, {
+                'action': 'database_search_and_replace',
+                'replace_from': $('.search-and-replace-from').val(),
+                'replace_to': $('.search-and-replace-to').val(),
+                '_nonce': upressAjax._nonce
+            }, function(response) {
+                console.log(response);
+
+                if (response.status == "fail") {
+                    flashErrorMessage(response.errors_msg);
+                }
+                if(response.status == "success") {
+                    $('.search-and-replace-from').val('');
+                    $('.search-and-replace-to').val('');
+
+                    if(self.data('success-message')) {
+                        flashSuccessMessage(self.data('success-message'));
+                    } else {
+                        if(response.success_msg) {
+                            flashSuccessMessage(response.success_msg);
+                        } else {
+                            flashSuccessMessage(upressAjax.requestSuccess);
+                        }
+                    }
+                }
+
+                endAjaxSpinner(self);
             });
         });
     };
 
+    var startAjaxSpinner = function(self) {
+        var wrapper = self.parents('.ajax-button-wrapper');
+        self.css({
+            width: self.outerWidth(),
+            height: self.outerHeight()
+        }).find('.text').fadeOut('fast', function() {
+            self.find('.spinner').fadeIn('fast');
+        }).end().attr('disabled', true);
+    };
+    var endAjaxSpinner = function(self) {
+        self.find('.spinner').fadeOut('fast', function () {
+            self.find('.text').fadeIn('fast').end().css( {
+                width: '',
+                height: ''
+            }).removeAttr('disabled');
+        });
+    };
+
     var initButtons = function() {
-        $('button[data-action]').each(function() {
+        $('button[data-action], button[data-ajax-spinner]').each(function() {
             var self = $(this);
             var text = self.text();
             self.text('');

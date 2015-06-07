@@ -5,6 +5,7 @@
 
 .no-api-key, .api-error, .api-success {
     display: none;
+    white-space: pre;
 }
 #api_key {
     direction: ltr;

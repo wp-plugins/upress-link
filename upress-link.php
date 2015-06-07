@@ -28,7 +28,7 @@
 if ( ! defined( 'WPINC' ) ) {
 	die;
 }
-define( 'UPL_VERSION', '1.0.0' );
+define( 'UPL_VERSION', '1.1.0' );
 define( 'UPL_PATH', dirname( __FILE__ ) );
 define( 'UPL_PATH_INCLUDES', dirname( __FILE__ ) . '/includes' );
 define( 'UPL_PATH_ADMIN', dirname( __FILE__ ) . '/admin' );
@@ -51,8 +51,12 @@ class uPress_Link {
 			add_action( 'admin_init', array( $this, 'upl_admin_init' ) );
 			add_action( 'admin_enqueue_scripts', array( $this, 'upl_admin_enqueue_scripts' ) );
 
+			//ajax actions
 			add_action( 'wp_ajax_check_api_key', array( $this, 'upl_ajax_check_api_key' ) );
 			add_action( 'wp_ajax_send_request', array( $this, 'upl_ajax_send_request' ) );
+
+			add_action( 'wp_ajax_fix_media_upload_path', array( $this, 'upl_ajax_fix_media_upload_path' ) );
+			add_action( 'wp_ajax_database_search_and_replace', array( $this, 'upl_ajax_database_search_and_replace' ) );
 		}
 
 		add_action( 'edit_post', array( $this, 'upl_edit_post_action' ) );
@@ -198,6 +202,156 @@ class uPress_Link {
 		echo $response;
 		exit;
 	}
+	function upl_ajax_fix_media_upload_path() {
+		global $wpdb;
+
+		$nonce = $_POST['_nonce'];
+		if ( ! wp_verify_nonce( $nonce, $this->plugin_slug . '_ajax' ) ) { wp_die( 'Not authorized!' ); }
+		if ( ! current_user_can( 'manage_options' ) ) { wp_die( __( 'You do not have sufficient permissions to access this page.' ) ); }
+
+		$result = $wpdb->update( $wpdb->options, array( 'option_value' => null ), array( 'option_name' => 'upload_path' ) );
+
+		$response = array(
+			'status' => ( $result === false ? 'fail' : 'success' ),
+			'data' => ( $result === false ? $wpdb->last_error : $wpdb->last_query ),
+			'debug' => $wpdb
+		);
+
+		$response = json_encode( $response );
+		header( "Content-Type: application/json" );
+		echo $response;
+		exit;
+	}
+	function upl_ajax_database_search_and_replace() {
+		global $wpdb;
+
+		$nonce = $_POST['_nonce'];
+		if ( ! wp_verify_nonce( $nonce, $this->plugin_slug . '_ajax' ) ) { wp_die( 'Not authorized!' ); }
+		if ( ! current_user_can( 'manage_options' ) ) { wp_die( __( 'You do not have sufficient permissions to access this page.' ) ); }
+
+		$search = $_POST['replace_from'];
+		$replace = $_POST['replace_to'];
+
+		if( ! isset( $search ) || ! isset( $replace ) ) wp_die( 'Something is missing!' );
+
+		$result = $wpdb->get_results(
+			'SHOW TABLES',
+			ARRAY_N
+		);
+		/*$result = $wpdb->query(
+			$wpdb->prepare(
+				'SHOW TABLES'
+			)
+		);*/
+		$tables = array();
+		foreach ( $result as $res )
+		{
+			$tables[] = $res[0];
+		}
+
+		$report = array( 'tables' => 0,
+		                 'rows' => 0,
+		                 'change' => 0,
+		                 'updates' => 0,
+		                 'start' => microtime( ),
+		                 'end' => microtime( ),
+		                 'errors' => array( ),
+		);
+
+		if ( is_array( $tables ) && ! empty( $tables ) ) {
+			foreach( $tables as $table ) {
+				$report[ 'tables' ]++;
+
+				$columns = array( );
+
+				$fields = $wpdb->get_results( 'DESCRIBE ' . $table, ARRAY_A );
+				foreach( $fields as $column ) {
+					$columns[ $column[ 'Field' ] ] = $column[ 'Key' ] == 'PRI' ? true : false;
+				}
+
+				$rows_result = $wpdb->get_row( 'SELECT COUNT(*) FROM ' . $table, ARRAY_N );
+				$row_count = $rows_result[ 0 ];
+				if ( $row_count == 0 )
+					continue;
+
+				$page_size = 50000;
+				$pages = ceil( $row_count / $page_size );
+
+				for( $page = 0; $page < $pages; $page++ ) {
+					$current_row = 0;
+					$start = $page * $page_size;
+					$end = $start + $page_size;
+					// Grab the content of the table
+					$data = $wpdb->get_results( sprintf( 'SELECT * FROM %s LIMIT %d, %d', $table, $start, $end ), ARRAY_A );
+
+					if ( ! $data )
+						$report[ 'errors' ][] = mysql_error( );
+
+					foreach( $data as $row ) {
+						$report[ 'rows' ]++; // Increment the row counter
+						$current_row++;
+
+						$update_sql = array( );
+						$where_sql = array( );
+						$upd = false;
+
+						foreach( $columns as $column => $primary_key ) {
+							$edited_data = $data_to_fix = $row[ $column ];
+
+							// Run a search replace on the data that'll respect the serialisation.
+							$edited_data = $this->recursive_unserialize_replace( $search, $replace, $data_to_fix );
+
+							// Something was changed
+							if ( $edited_data != $data_to_fix ) {
+								$report[ 'change' ]++;
+								$update_sql[] = $column . ' = "' . esc_sql( $edited_data ) . '"';
+								$upd = true;
+							}
+
+							if ( $primary_key )
+								$where_sql[] = $column . ' = "' . esc_sql( $data_to_fix ) . '"';
+						}
+
+						if ( $upd && ! empty( $where_sql ) ) {
+							$sql = 'UPDATE ' . $table . ' SET ' . implode( ', ', $update_sql ) . ' WHERE ' . implode( ' AND ', array_filter( $where_sql ) );
+							$result = $wpdb->get_results( $sql, ARRAY_A );
+							if ( ! $result )
+								$report[ 'errors' ][] = mysql_error( );
+							else
+								$report[ 'updates' ]++;
+
+						} elseif ( $upd ) {
+							$report[ 'errors' ][] = sprintf( '"%s" has no primary key, manual change needed on row %s.', $table, $current_row );
+						}
+					}
+				}
+			}
+		}
+
+		$report[ 'end' ] = microtime( );
+
+		$errors = '';
+		if ( ! empty( $report[ 'errors' ] ) && is_array( $report[ 'errors' ] ) ) {
+			foreach( $report[ 'errors' ] as $error )
+				$errors .=  $error . "\n";
+		}
+		$time = array_sum( explode( ' ', $report[ 'end' ] ) ) - array_sum( explode( ' ', $report[ 'start' ] ) );
+
+		$response = array(
+			'status' => ( $result === false ? 'fail' : 'success' ),
+			'data' => ( $result === false ? $wpdb->last_error : $report ),
+			'debug' => $wpdb,
+			'time' => $time,
+			'success_msg' => sprintf( __( 'Replace completed for the text "%s" which was replaced by "%s". %d tables scanned with %d total rows. Replacement took %f seconds.', $this->text_domain ),
+				$search, $replace, $report[ 'tables' ], $report[ 'rows' ], $report[ 'change' ], $report[ 'updates' ], $time ),
+			'errors_msg' => $errors
+		);
+
+		$response = json_encode( $response );
+		header( "Content-Type: application/json" );
+		echo $response;
+		exit;
+	}
 
 
 
@@ -222,6 +376,51 @@ class uPress_Link {
 				)
 			) );
 		}
+	}
+
+
+	/**
+	 * Take a serialised array and unserialise it replacing elements as needed and
+	 * unserialising any subordinate arrays and performing the replace on those too.
+	 *
+	 * @param string $from       String we're looking to replace.
+	 * @param string $to         What we want it to be replaced with
+	 * @param array  $data       Used to pass any subordinate arrays back to in.
+	 * @param bool   $serialised Does the array passed via $data need serialising.
+	 *
+	 * @return array	The original array with all elements replaced as needed.
+	 */
+	private function recursive_unserialize_replace( $from = '', $to = '', $data = '', $serialised = false ) {
+		// some unseriliased data cannot be re-serialised eg. SimpleXMLElements
+		try {
+
+			if ( is_string( $data ) && ( $unserialized = @unserialize( $data ) ) !== false ) {
+				$data = $this->recursive_unserialize_replace( $from, $to, $unserialized, true );
+			}
+
+			elseif ( is_array( $data ) ) {
+				$_tmp = array( );
+				foreach ( $data as $key => $value ) {
+					$_tmp[ $key ] = $this->recursive_unserialize_replace( $from, $to, $value, false );
+				}
+
+				$data = $_tmp;
+				unset( $_tmp );
+			}
+
+			else {
+				if ( is_string( $data ) )
+					$data = str_replace( $from, $to, $data );
+			}
+
+			if ( $serialised )
+				return serialize( $data );
+
+		} catch( Exception $error ) {
+
+		}
+
+		return $data;
 	}
 }
 new uPress_Link();

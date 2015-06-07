@@ -46,6 +46,33 @@
 		<?php submit_button(); ?>
 	</form>
 
+
+	<hr>
+	<h3><?php esc_attr_e( 'More actions', $this->text_domain ); ?></h3>
+	<div class="wrap">
+		<h4><?php esc_attr_e( 'Fix media upload path', $this->text_domain ); ?></h4>
+		<p><?php esc_attr_e( 'Sometimes after migrating a WordPress installation the media path is not set correctly and breaks uploading media content. This will fix the issue and correct the upload path.', $this->text_domain ); ?></p>
+		<p><button class="button-secondary media-path-fix-button" type="button" data-ajax-spinner><?php esc_attr_e( 'Run media path fix', $this->text_domain ); ?></button></p>
+
+		<h4><?php esc_attr_e( 'Database search and replace', $this->text_domain ); ?></h4>
+		<p><?php esc_attr_e( 'This will allow you to replace a text in your entire website in a simple click of a button', $this->text_domain ); ?></p>
+		<p>
+			<table class="form-table">
+				<tr valign="top">
+					<th scope="row"><?php esc_attr_e( 'Search:', $this->text_domain ); ?></th>
+					<td><input type="text" class="regular-text search-and-replace-from" /></td>
+				</tr>
+				<tr valign="top">
+					<th scope="row"><?php esc_attr_e( 'Replace:', $this->text_domain ); ?></th>
+					<td><input type="text" class="regular-text search-and-replace-to" /></td>
+				</tr>
+			</table>
+
+			<button class="button-secondary search-and-replace-button" type="button" data-ajax-spinner><?php esc_attr_e( 'Search and replace', $this->text_domain ); ?></button>
+		</p>
+	</div>
+
+
 	<?php if( $is_api_key_set ) : ?>
 	<hr>
 
@@ -197,4 +224,6 @@
 <input type="hidden" id="upress-available" value="<?php echo (int)$upress_available; ?>">
 <input type="hidden" id="api-key-valid" value="<?php echo (int)$is_api_key_correct; ?>">
 
+
+<hr>
 <span class="description"><?php esc_attr_e( '*Updates are queued and refreshed 1 minute after the update.', $this->text_domain ); ?></span>

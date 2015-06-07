@@ -52,5 +52,8 @@ You must enable the CDN from uPress interface:
 1. uPress Link main view
 
 == Changelog ==
+= 1.1 =
+1. Added option to fix media upload path
+1. Added options to search and replace in database
 = 1.0 =
 Initial release
