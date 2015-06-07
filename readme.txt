@@ -3,7 +3,7 @@ Contributors: ilanraid,ilanf
 Tags: upress,hosting,companion,link,manager,cdn,optimization,performance
 Requires at least: 4.0
 Tested up to: 4.1.1
-Stable tag: trunk
+Stable tag: 1.1.0
 License: GPL-2.0+
 License URI: http://www.gnu.org/licenses/gpl-2.0.txt
 
